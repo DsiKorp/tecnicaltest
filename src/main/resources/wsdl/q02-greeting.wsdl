@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WSDL 1.1 del servicio SOAP de la pregunta 2.
+
+  Este documento es el "contrato" del servicio. En Java, `wsimport` lo consume para GENERAR
+  los stubs (clases cliente) que hablan con este servicio. Ese es exactamente el punto que
+  hace la pregunta: WSDL (SOAP) y OpenAPI (REST) son las dos versiones del mismo concepto.
+
+  Para generar el stub a partir de este WSDL:
+      wsimport -p com.dsklabs.epam.tecnicaltest.q02webservices.client \
+               http://localhost:8080/q02/wsdl
+-->
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                  xmlns:tns="http://epam.com/q02"
+                  targetNamespace="http://epam.com/q02"
+                  name="Q02GreetingService">
+
+    <wsdl:types>
+        <xsd:schema targetNamespace="http://epam.com/q02" elementFormDefault="qualified">
+            <xsd:element name="greetRequest">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="name" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="greetResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="greeting" type="xsd:string" minOccurs="0"/>
+                        <xsd:element name="transport" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </wsdl:types>
+
+    <wsdl:message name="greetRequest">
+        <wsdl:part name="parameters" element="tns:greetRequest"/>
+    </wsdl:message>
+
+    <wsdl:message name="greetResponse">
+        <wsdl:part name="parameters" element="tns:greetResponse"/>
+    </wsdl:message>
+
+    <wsdl:portType name="Q02GreetingPort">
+        <wsdl:operation name="greet">
+            <wsdl:input message="tns:greetRequest"/>
+            <wsdl:output message="tns:greetResponse"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <wsdl:binding name="Q02GreetingServiceSoapBinding" type="tns:Q02GreetingPort">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="greet">
+            <soap:operation soapAction=""/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <wsdl:service name="Q02GreetingService">
+        <wsdl:port name="Q02GreetingPort" binding="tns:Q02GreetingServiceSoapBinding">
+            <soap:address location="http://localhost:8080/soap/greeting"/>
+        </wsdl:port>
+    </wsdl:service>
+
+</wsdl:definitions>

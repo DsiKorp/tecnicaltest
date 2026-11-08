@@ -1,0 +1,35 @@
+# ==========================================================================
+# Demo local: la app + Redis.
+#
+#   docker compose up -d --build     → app en :8080 con Redis en :6379
+#   docker compose up -d redis       → solo Redis (para probar la P8 en local)
+#
+# Si Redis no está, la app NO se cae: cae al almacén en memoria (P8).
+# ==========================================================================
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: tecnicaltest-redis
+    command: redis-server --save "" --appendonly no
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    container_name: tecnicaltest-app
+    # Perfil local: el Dockerfile trae 'aws' hardcodeado para producción.
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      EPAM_Q08_MODE: auto
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy

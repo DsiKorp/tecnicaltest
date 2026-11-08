@@ -1,0 +1,52 @@
+server:
+  port: 8080
+  # Límite real de la URL/request line. El artículo habla de "~2K caracteres" como
+  # presupuesto práctico; el límite duro lo impone el contenedor (Tomcat).
+  # Lo subimos a 16KB para poder DEMOSTRAR el 414 en vivo sin cortar requests legítimos.
+  max-http-request-header-size: 16KB
+
+spring:
+  application:
+    name: tecnicaltest
+  threads:
+    virtual:
+      enabled: true
+  config:
+    import: optional:file:.env[.properties]
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # Timeouts cortos: si no hay Redis (caso AWS), el probe falla rápido y la app
+      # cae al fallback en memoria en lugar de colgarse en el arranque.
+      connect-timeout: 1s
+      timeout: 2s
+
+epam:
+  q03:
+    # Transcripción que deja el script de merge vs rebase
+    transcript-path: target/git-demo/transcript.txt
+  q08:
+    # auto = prueba Redis al arrancar y cae a in-memory si no responde
+    # redis = obliga Redis (falla rápido si no está)
+    # memory = nunca toca Redis
+    mode: ${EPAM_Q08_MODE:auto}
+    chunk-size: 262144        # 256 KiB por chunk
+    max-payload-mb: 32        # tope del payload de demo (protege el heap de la t3.small)
+  q10:
+    max-recommended-url-length: 2048
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    redis:
+      # En AWS no hay Redis: el healthcheck oficial reportaría DOWN.
+      # Lo que reporta el estado real es nuestro propio BlobStoreHealthIndicator.
+      enabled: false
+
+logging:
+  level:
+    com.dsklabs.epam.tecnicaltest: INFO

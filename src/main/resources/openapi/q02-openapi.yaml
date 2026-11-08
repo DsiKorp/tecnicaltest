@@ -1,0 +1,117 @@
+openapi: 3.0.3
+
+# Contrato OpenAPI 3.0 del lado REST de la pregunta 2.
+#
+# Este documento es el equivalente EXACTO del WSDL de /q02/wsdl:
+#   - WSDL    -> genera stubs Java con `wsimport`
+#   - OpenAPI -> genera clientes con `openapi-generator` (y alimenta Swagger UI, Postman, etc.)
+#
+# Ambos son contratos "contract-first": se escribe el contrato y luego la implementación.
+info:
+  title: EPAM Demo - Q02 Greeting Service (REST)
+  description: |
+    Servicio de saludo, lado REST. Compáralo con el WSDL en `/q02/wsdl`.
+
+    La respuesta JSON y el sobre SOAP contienen la misma información; lo que cambia es el
+    transporte (JSON vs XML) y el contrato (OpenAPI vs WSDL).
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local
+  - url: http://{host}:8080
+    description: AWS (EC2)
+    variables:
+      host:
+        default: REPLACE_WITH_ELASTIC_IP
+        description: Elastic IP de la instancia EC2
+
+tags:
+  - name: q02
+    description: REST vs SOAP
+
+paths:
+  /q02/rest/greeting:
+    get:
+      tags: [q02]
+      summary: Devuelve un saludo
+      description: |
+        Endpoint REST equivalente a la operación SOAP `greet` del WSDL.
+        Los parámetros viajan en la query string, NO en un body: es la restricción clásica de GET.
+      operationId: getGreeting
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: Nombre a saludar
+          schema:
+            type: string
+            default: mundo
+          example: Ana
+      responses:
+        '200':
+          description: Saludo generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GreetingResponse'
+        '400':
+          description: Petición inválida
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /q02/compare:
+    get:
+      tags: [q02]
+      summary: Compara WSDL y OpenAPI lado a lado
+      description: |
+        Devuelve las URLs de los dos contratos y qué herramienta genera stubs/clientes a partir
+        de cada uno. Es la respuesta directa a la pregunta "REST vs SOAP".
+      operationId: compareContracts
+      responses:
+        '200':
+          description: Comparación de contratos
+          content:
+            application/json:
+              schema:
+                type: object
+
+components:
+  schemas:
+    GreetingResponse:
+      type: object
+      properties:
+        demo:
+          type: string
+          example: q02-rest
+        summary:
+          type: string
+          example: "Mismo servicio, transporte REST: JSON sobre HTTP"
+        data:
+          type: object
+          properties:
+            greeting:
+              type: string
+              example: "¡Hola, Ana! (servicio REST: JSON sobre HTTP, contrato OpenAPI)"
+            transport:
+              type: string
+              example: REST / JSON
+            namespace:
+              type: string
+              example: http://epam.com/q02
+    Problem:
+      type: object
+      description: RFC 9457 (Problem Details for HTTP APIs)
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        errorCode:
+          type: string

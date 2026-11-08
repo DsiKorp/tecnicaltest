@@ -1,0 +1,175 @@
+name: Build y despliegue a AWS
+
+# Se dispara en cada push a main (y manualmente desde la pestaña Actions).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permisos mínimos: solo pedir el token OIDC para asumir el rol de AWS.
+permissions:
+  contents: read
+  id-token: write
+  packages: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "626159997716"
+  ECR_REPOSITORY: tecnicaltest
+  ECR_REGISTRY: 626159997716.dkr.ecr.us-east-1.amazonaws.com
+  # Rol de despliegue asumido vía OIDC: NO hay access keys en los secrets.
+  AWS_DEPLOY_ROLE_ARN: arn:aws:iam::626159997716:role/tecnicaltest-gha-deploy
+  # La instancia se localiza por su tag Name.
+  INSTANCE_NAME_TAG: tecnicaltest-app
+
+jobs:
+  build:
+    name: Compilar y pasar los tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Build y tests (toda la pirámide)
+        run: ./mvnw -B verify
+
+      # Si los tests fallan, el job falla y NO se construye ni se despliega la imagen.
+
+  image:
+    name: Construir y subir la imagen a ECR
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Calcular el tag de la imagen
+        id: meta
+        run: |
+          SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Autenticarse en AWS con OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login en ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Construir y subir
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Desplegar en la instancia EC2 (vía SSM)
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Autenticarse en AWS con OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Localizar la instancia
+        id: instance
+        run: |
+          INSTANCE_ID="$(aws ec2 describe-instances \
+            --region "${AWS_REGION}" \
+            --filters "Name=tag:Name,Values=${INSTANCE_NAME_TAG}" \
+                              "Name=instance-state-name,Values=running" \
+            --query 'Reservations[].Instances[].InstanceId' --output text)"
+          if [[ -z "${INSTANCE_ID}" || "${INSTANCE_ID}" == "None" ]]; then
+            echo "::error::No hay ninguna instancia '${INSTANCE_NAME_TAG}' en estado running."
+            exit 1
+          fi
+          echo "id=${INSTANCE_ID}" >> "$GITHUB_OUTPUT"
+          echo "Instancia: ${INSTANCE_ID}"
+
+      - name: Enviar el comando de despliegue por SSM
+        id: ssm
+        env:
+          IMAGE: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.image.outputs.tag }}
+        run: |
+          COMMAND_ID="$(aws ssm send-command \
+            --region "${AWS_REGION}" \
+            --instance-ids "${{ steps.instance.outputs.id }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[
+              \"set -e\",
+              \"docker pull ${IMAGE}\",
+              \"docker rm -f tecnicaltest || true\",
+              \"docker run -d --name tecnicaltest --restart unless-stopped -p 8080:8080 -e SPRING_PROFILES_ACTIVE=aws -e EPAM_Q08_MODE=auto ${IMAGE}\",
+              \"docker ps --filter name=tecnicaltest --format '{{.Names}} {{.Status}}'\"
+            ]" \
+            --query 'Command.CommandId' --output text)"
+          echo "id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
+          echo "Comando SSM: ${COMMAND_ID}"
+
+      - name: Esperar al resultado
+        run: |
+          for _ in $(seq 1 30); do
+            STATUS="$(aws ssm get-command-invocation \
+              --region "${AWS_REGION}" \
+              --command-id "${{ steps.ssm.outputs.id }}" \
+              --instance-id "${{ steps.instance.outputs.id }}" \
+              --query 'Status' --output text)"
+            echo "Estado: ${STATUS}"
+            if [[ "${STATUS}" == "Success" ]]; then
+              aws ssm get-command-invocation \
+                --region "${AWS_REGION}" \
+                --command-id "${{ steps.ssm.outputs.id }}" \
+                --instance-id "${{ steps.instance.outputs.id }}" \
+                --query 'StandardOutputContent' --output text
+              exit 0
+            fi
+            if [[ "${STATUS}" == "Failed" || "${STATUS}" == "Cancelled" ]]; then
+              aws ssm get-command-invocation \
+                --region "${AWS_REGION}" \
+                --command-id "${{ steps.ssm.outputs.id }}" \
+                --instance-id "${{ steps.instance.outputs.id }}" \
+                --query 'StandardErrorContent' --output text
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "::error::El comando SSM no terminó a tiempo."
+          exit 1
+
+      - name: Comprobar que la app responde
+        run: |
+          PUBLIC_IP="$(aws ec2 describe-instances \
+            --region "${AWS_REGION}" \
+            --instance-ids "${{ steps.instance.outputs.id }}" \
+            --query 'Reservations[].Instances[].PublicIpAddress' --output text)"
+          echo "IP pública: ${PUBLIC_IP}"
+          for _ in $(seq 1 30); do
+            if curl -sf --max-time 5 "http://${PUBLIC_IP}:8080/actuator/health"; then
+              echo ""
+              echo "La app responde correctamente en http://${PUBLIC_IP}:8080"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::warning::La app no respondió al health check (puede estar arrancando)."

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>P2 — WSDL vs OpenAPI</title>
+    <link rel="stylesheet" href="assets/app.css">
+    <style>
+        .compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .panel {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-elevated);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel__head {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-elevated-2);
+        }
+        .panel__head h2 {
+            margin: 0;
+            font-size: 15px;
+        }
+        .panel__head p {
+            margin: 4px 0 0;
+            color: var(--text-muted);
+            font-size: 12.5px;
+        }
+        .panel__body {
+            margin: 0;
+            padding: 14px 16px;
+            overflow: auto;
+            max-height: 70vh;
+            font-family: var(--mono);
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .notes {
+            max-width: 1600px;
+            margin: 20px auto 0;
+            padding: 18px 20px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-elevated);
+        }
+        .notes h2 { margin: 0 0 10px; font-size: 16px; }
+        .notes table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .notes th, .notes td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .notes th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .notes code { font-family: var(--mono); font-size: 12.5px; color: var(--accent); }
+        @media (max-width: 900px) { .compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar__main">
+        <h1>P2 · WSDL vs OpenAPI</h1>
+        <p class="topbar__subtitle">
+            Los dos contratos del mismo servicio, uno al lado del otro. El WSDL lo genera
+            <code>wsimport</code>; el OpenAPI, <code>openapi-generator</code>.
+        </p>
+    </div>
+    <div class="status">
+        <span class="status__item">
+            <a class="btn" href="/">← Volver a la demo</a>
+        </span>
+    </div>
+</header>
+
+<main>
+    <div class="compare">
+        <section class="panel">
+            <div class="panel__head">
+                <h2>WSDL 1.1 · SOAP</h2>
+                <p>Contrato del servicio SOAP. Se sirve en <code>/q02/wsdl</code>.</p>
+            </div>
+            <pre class="panel__body" id="wsdl">Cargando…</pre>
+        </section>
+
+        <section class="panel">
+            <div class="panel__head">
+                <h2>OpenAPI 3.0 · REST</h2>
+                <p>Contrato del servicio REST. Se sirve en <code>/q02/openapi.yaml</code>.</p>
+            </div>
+            <pre class="panel__body" id="openapi">Cargando…</pre>
+        </section>
+    </div>
+
+    <section class="notes">
+        <h2>La respuesta, en una tabla</h2>
+        <table>
+            <tbody>
+            <tr>
+                <th>Concepto</th>
+                <th>SOAP</th>
+                <th>REST</th>
+            </tr>
+            <tr>
+                <td>Contrato</td>
+                <td>WSDL 1.1 (XML)</td>
+                <td>OpenAPI 3.0 (YAML o JSON)</td>
+            </tr>
+            <tr>
+                <td>Genera código</td>
+                <td><code>wsimport -p &lt;paquete&gt; http://host:8080/q02/wsdl</code></td>
+                <td><code>openapi-generator generate -i http://host:8080/q02/openapi.yaml</code></td>
+            </tr>
+            <tr>
+                <td>Payload</td>
+                <td>XML dentro de un sobre SOAP (verboso)</td>
+                <td>JSON (ligero)</td>
+            </tr>
+            <tr>
+                <td>Transporte</td>
+                <td>HTTP, pero con su propio sobre y un binding por operación</td>
+                <td>HTTP tal cual: GET, POST, códigos de estado, cabeceras</td>
+            </tr>
+            <tr>
+                <td>Ecosistema</td>
+                <td>Heredado: WS-Security, WS-ReliableMessaging, interoperabilidad con stacks antiguos</td>
+                <td>Estándar de facto: Swagger UI, Postman, gateways, client generators</td>
+            </tr>
+            <tr>
+                <td>Cuándo elegirlo</td>
+                <td>Contratos muy estables, Integración con software legacy, seguridad WS-*</td>
+                <td>El 90% de las APIs nuevas: payloads ligeros y consumo del contrato con OpenAPI</td>
+            </tr>
+            </tbody>
+        </table>
+        <p style="color: var(--text-muted); margin-bottom: 0;">
+            <strong>El punto clave para la entrevista:</strong> WSDL y OpenAPI son la misma idea
+            aplicada a dos mundos — <em>contrato primero</em>. La documentación del servicio y la
+            generación de clientes no son un extra: son el mecanismo. SOAP lleva 25 años haciéndolo
+            con WSDL; REST lo ha heredado con OpenAPI.
+        </p>
+    </section>
+</main>
+
+<script>
+    async function cargar(elementId, url) {
+        const element = document.getElementById(elementId);
+        try {
+            element.textContent = await fetch(url).then(r => r.text());
+        } catch (e) {
+            element.textContent = "No se pudo cargar " + url + ": " + e;
+        }
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+        cargar("wsdl", "/q02/wsdl");
+        cargar("openapi", "/q02/openapi.yaml");
+    });
+</script>
+</body>
+</html>

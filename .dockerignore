@@ -1,0 +1,25 @@
+# Build outputs
+target/
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Git
+.git/
+
+# Local files
+*.log
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (no hacen falta en la imagen)
+docs/
+README.md
+HELP.md

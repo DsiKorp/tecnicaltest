@@ -1,0 +1,23 @@
+# Perfil de AWS. El Dockerfile lo activa con ENV SPRING_PROFILES_ACTIVE=aws,
+# igual que en spring-boot-medassistant.
+#
+# Diferencias con el perfil local: NO hay Redis en la instancia, así que la
+# pregunta 8 debe arrancar con el fallback en memoria y no intentar conectar.
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      connect-timeout: 1s
+      timeout: 2s
+
+epam:
+  q08:
+    # auto -> un ping() y, si no responde, fallback en memoria (con WARN en el log).
+    # Es lo que permite que la misma imagen sirva en local (con Redis) y en AWS (sin Redis).
+    mode: ${EPAM_Q08_MODE:auto}
+
+management:
+  health:
+    redis:
+      enabled: false

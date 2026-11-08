@@ -1,0 +1,12 @@
+# Perfil local (docker-compose). Redis está en el servicio 'redis'.
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      connect-timeout: 1s
+      timeout: 2s
+
+epam:
+  q08:
+    mode: ${EPAM_Q08_MODE:auto}

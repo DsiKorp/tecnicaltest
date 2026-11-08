@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo entrevista Java Senior — 10 preguntas EPAM</title>
+    <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar__main">
+        <h1>Demo entrevista Java Senior</h1>
+        <p class="topbar__subtitle">
+            10 preguntas de <strong>Gaetano Piazzolla</strong> (EPAM) — cada una con una implementación real,
+            sus tests y un endpoint que se puede abrir en vivo.
+        </p>
+    </div>
+    <div class="status" id="status">
+        <span class="status__item"><span class="status__label">Salud</span><span class="status__value" id="status-health">…</span></span>
+        <span class="status__item"><span class="status__label">Almacén P8</span><span class="status__value" id="status-store">…</span></span>
+        <span class="status__item"><span class="status__label">WSDL</span><span class="status__value" id="status-wsdl">…</span></span>
+    </div>
+</header>
+
+<main>
+    <!--
+      Índice estático: las tarjetas de abajo las genera app.js, pero este índice está en el
+      HTML para que la página siga siendo legible si el JavaScript no carga (por ejemplo,
+      si un proxy de la sala de entrevistas lo bloquea).
+    -->
+    <nav class="toc" aria-label="Índice de preguntas">
+        <ol>
+            <li>ArrayList vs LinkedList</li>
+            <li>REST vs SOAP</li>
+            <li>Merge vs rebase</li>
+            <li>Pirámide de testing</li>
+            <li>Ordenar un HashSet</li>
+            <li>Jerarquía de excepciones</li>
+            <li>Identificar problemas de rendimiento</li>
+            <li>Datos enormes en Redis</li>
+            <li>AOP y su mayor trampa</li>
+            <li>Limitaciones de GET</li>
+        </ol>
+    </nav>
+
+    <section class="grid" id="grid"><!-- las tarjetas las genera app.js --></section>
+
+    <section class="output" id="output" hidden>
+        <div class="output__head">
+            <h2 id="output-title">Respuesta</h2>
+            <button type="button" class="output__close" id="output-close" aria-label="Cerrar">✕</button>
+        </div>
+        <pre class="output__body" id="output-body"></pre>
+    </section>
+</main>
+
+<footer class="footer">
+    <p>
+        Spring Boot 4.1.2 · Java 25 · Sin dependencias de CDN: la demo funciona sin conexión.
+        Contratos: <a href="/q02/wsdl">WSDL</a> · <a href="/q02/openapi.yaml">OpenAPI</a> ·
+        <a href="/q02-api.html">WSDL vs OpenAPI</a> · <a href="/actuator/health">Health</a>
+    </p>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
